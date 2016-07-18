@@ -14,11 +14,13 @@ bool NumberCard::init(){
 	if (!Node::init())
 		return false;
 
+	setCascadeOpacityEnabled(true);
+
 	m_bgLayer = LayerColor::create(Color4B(200, 190, 180, 255), CardLengthOfSide, CardLengthOfSide);
 	m_bgLayer->setPosition(0, 0);
 	addChild(m_bgLayer);
 
-	m_numLabel = Label::createWithTTF("", "fonts/arial.ttf", 40);
+	m_numLabel = Label::createWithSystemFont("0", "", 40);
 	m_numLabel->setPosition(Vec2(CardLengthOfSide/2, CardLengthOfSide/2));
 	addChild(m_numLabel);
 
@@ -67,4 +69,36 @@ void NumberCard::setNumber(int var){
 		m_bgLayer->setColor(Color3B(0, 130, 0));
 	else
 		m_bgLayer->setColor(Color3B(20, 190, 10));
+}
+
+void NumberCard::startShowAction(Vec2 centerPos, Vec2 targetPos)
+{
+
+	setOpacity(0);
+
+	auto fadeIn = FadeIn::create(0.8f);
+	auto moveToCenter = MoveTo::create(0.2f, centerPos);
+	auto delayTime = DelayTime::create(0.2f);
+// 	auto showLabel = CallFunc::create([this](){
+// 		m_numLabel->setVisible(true);
+// 		m_numLabel->setOpacity(0);
+// 		m_numLabel->runAction(FadeIn::create(0.2f));
+// 	});
+	auto moveToPos = MoveTo::create(0.2f, targetPos);
+
+	runAction(Sequence::create(fadeIn, moveToCenter, delayTime, moveToPos, nullptr));
+}
+
+void NumberCard::resetAction(Vec2 centerPos, Vec2 targetPos)
+{
+	auto moveToCenter = MoveTo::create(0.2f, centerPos);
+	auto delayTime = DelayTime::create(0.2f);
+// 	auto showLabel = CallFunc::create([this](){
+// 		m_numLabel->setVisible(true);
+// 		m_numLabel->setOpacity(0);
+// 		m_numLabel->runAction(FadeIn::create(0.2f));
+// 	});
+	auto moveToPos = MoveTo::create(0.2f, targetPos);
+
+	runAction(Sequence::create(moveToCenter, delayTime, moveToPos, nullptr));
 }

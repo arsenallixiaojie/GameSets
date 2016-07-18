@@ -16,6 +16,10 @@ public:
 
 	void setNumber(int var);
 	int getNumber(){ return m_iNum; };
+
+	void startShowAction(Vec2 centerPos, Vec2 targetPos);
+
+	void resetAction(Vec2 centerPos, Vec2 targetPos);
 private:
 	bool init();
 

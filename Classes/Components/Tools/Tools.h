@@ -52,6 +52,7 @@ namespace SharedTools
 	//Ê¾Àý:findFilesByPartName("D:/DZPhone/client/cocos2d-x-2.1.3/PokerClient/Classes","GameLogin");
 	//	   findFilesByPartName("/root/cocos2dx/cocos2d-x-2.2/DZPoker/Classes","GameLogin");
 	std::vector<std::string> findFilesByPartName(const char * dirp, const char* partName);
+
 }
 
 #endif 

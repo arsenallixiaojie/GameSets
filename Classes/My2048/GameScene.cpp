@@ -1,9 +1,15 @@
 #include "GameScene.h"
 #include "NumberCard.h"
+#include "SoundManager.h"
+#include "ScrollNumber.h"
+
+const int GameScene::m_iCardGap = 6;
 
 GameScene::GameScene()
 {
-
+	m_isCanUndo = false;
+	m_pScrollScore = nullptr;
+	m_iScore = 0;
 }
 
 GameScene::~GameScene()
@@ -31,6 +37,7 @@ bool GameScene::init()
 
 	initMenu();
 	initCards();
+	initScrollScore();
 
 	autoCreateNumber();
 	autoCreateNumber();
@@ -49,29 +56,52 @@ void GameScene::initMenu(){
 	pMemu->setPosition(Vec2(0, 0));
 	addChild(pMemu);
 
-	auto label = Label::createWithTTF("Reset", "fonts/HandWrite.ttf", 30);
+	auto label = Label::createWithTTF("Reset", "fonts/arial.ttf", 30);
 	MenuItemLabel* pReset = MenuItemLabel::create(label, CC_CALLBACK_1(GameScene::resetBtnCallback, this));
 	pReset->setColor(Color3B(0,0,0));
 	pReset->setPosition(Vec2(m_visibleSize.width/2, m_visibleSize.height - 50));
 	pMemu->addChild(pReset);
+
+	auto pUndoLabel = Label::createWithTTF("Undo", "fonts/arial.ttf", 30);
+	MenuItemLabel* pUndo = MenuItemLabel::create(pUndoLabel, CC_CALLBACK_1(GameScene::undoBtnCallback, this));
+	pUndo->setColor(Color3B(0, 0, 0));
+	pUndo->setPosition(Vec2(m_visibleSize.width / 2 + 80, m_visibleSize.height - 50));
+	pMemu->addChild(pUndo);
 }
 
 void GameScene::initCards(){
 	NumberCard* card = nullptr;
-	float gap = 6.0f;
 	float posY = m_visibleSize.height - 200;
+
+	Vec2 centerPos;
+	Vec2 targetPos;
 	for (int i = 0; i < 4; i++)
 	{
 		for (int j = 0; j < 4; j++)
 		{
 			card = NumberCard::create();
-			card->setPosition(i*NumberCard::CardLengthOfSide + (i+1)*gap, posY - j*(gap + NumberCard::CardLengthOfSide));
-			addChild(card);
+			card->setPosition(i*NumberCard::CardLengthOfSide + (i + 1)*m_iCardGap, posY - j*(m_iCardGap + NumberCard::CardLengthOfSide));
+			card->setNumber(0);
+			
+			centerPos = Vec2(m_visibleSize.width / 2 - NumberCard::CardLengthOfSide / 2, posY - 1.5*(m_iCardGap + NumberCard::CardLengthOfSide));
+			targetPos = Vec2(i*NumberCard::CardLengthOfSide + (i + 1)*m_iCardGap, posY - j*(m_iCardGap + NumberCard::CardLengthOfSide));
+			card->startShowAction(centerPos, targetPos);
 
 			m_pCards[i][j] = card;
+			addChild(card);
 		}
 	}
 }
+
+
+void GameScene::initScrollScore()
+{
+	m_pScrollScore = ScrollNumber::create(5, 24);
+	m_pScrollScore->setNumber(m_iScore);
+	m_pScrollScore->setPosition(Vec2(m_visibleSize.width/2, 50));
+	addChild(m_pScrollScore);
+}
+
 
 void GameScene::autoCreateNumber(){
 	int x = rand() % 4;
@@ -86,17 +116,39 @@ void GameScene::autoCreateNumber(){
 	}
 }
 
+
 void GameScene::resetBtnCallback(Ref* obj){
+	Vec2 centerPos;
+	Vec2 targetPos;
+	float posY = m_visibleSize.height - 200;
 	for (int i = 0; i < 4; i++)
 	{
 		for (int j = 0; j < 4; j++)
 		{
 			m_pCards[i][j]->setNumber(0);
+			centerPos = Vec2(m_visibleSize.width / 2 - NumberCard::CardLengthOfSide / 2, posY - 1.5*(m_iCardGap + NumberCard::CardLengthOfSide));
+			targetPos = Vec2(i*NumberCard::CardLengthOfSide + (i + 1)*m_iCardGap, posY - j*(m_iCardGap + NumberCard::CardLengthOfSide));
+			m_pCards[i][j]->resetAction(centerPos, targetPos);
 		}
 	}
 
 	autoCreateNumber();
 	autoCreateNumber();
+}
+
+void GameScene::undoBtnCallback(Ref* obj)
+{
+	log("GameScene::undoBtnCallback");
+	if (!m_isCanUndo)
+		return;
+	
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			m_pCards[i][j]->setNumber(m_pLastCards[i][j]);
+		}
+	}
 }
 
 void GameScene::checkIsGameOver(){
@@ -120,6 +172,38 @@ void GameScene::checkIsGameOver(){
 
 }
 
+
+void GameScene::switchDirection(enDirection direction)
+{
+	bool isDo = false;
+	switch (direction)
+	{
+	case enToLeft:
+		isDo = toLeft();
+		break;
+	case enToRight:
+		isDo = toRight();
+		break;
+	case enToTop:
+		isDo = toTop();
+		break;
+	case enToBottom:
+		isDo = toBottom();
+		break;
+	default:
+		break;
+	}
+
+	if (isDo)
+	{
+		m_isCanUndo = true;
+		m_pScrollScore->setNumber(m_iScore);
+		autoCreateNumber();
+		checkIsGameOver();
+	}
+}
+
+
 bool GameScene::onTouchBegan(Touch *touch, Event *unused_event){
 	m_beginPoint = touch->getLocation();
 	
@@ -139,54 +223,19 @@ void GameScene::onTouchEnded(Touch *touch, Event *unused_event){
 	}
 
 	if (abs(disX) > abs(disY))
-	{
-		//水平方向
-		if (disX > 2)
-		{
-			//向右
-			if (slideToRight())
-			{
-				autoCreateNumber();
-				checkIsGameOver();
-			}
-		}
-		else
-		{
-			//向左
-			if (slideToLeft())
-			{
-				autoCreateNumber();
-				checkIsGameOver();
-			}
-		}
-	}
+		switchDirection( disX > 2 ? enToRight : enToLeft);
 	else
-	{
-		//垂直方向
-		if (disY > 2)
-		{
-			//向上
-			if (slideToTop())
-			{
-				autoCreateNumber();
-				checkIsGameOver();
-			}
-		}
-		else
-		{
-			//向下
-			if (slideToBottom())
-			{
-				autoCreateNumber();
-				checkIsGameOver();
-			}
-		}
-	}
+		switchDirection( disY > 2 ? enToTop : enToBottom);
 }
 
-bool GameScene::slideToLeft(){
-	log("GameScene::slideToLeft");
+bool GameScene::toLeft(){
+	log("GameScene::toLeft");
 	bool isDo = false;
+
+	int temp[4][4];
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			temp[i][j] = m_pCards[i][j]->getNumber();
 
 	for (int j = 0; j < 4; j++)
 	{
@@ -205,6 +254,7 @@ bool GameScene::slideToLeft(){
 					}
 					else if (m_pCards[i][j]->getNumber() == m_pCards[k][j]->getNumber())
 					{
+						m_iScore += m_pCards[k][j]->getNumber();
 						m_pCards[i][j]->setNumber(m_pCards[i][j]->getNumber() + m_pCards[k][j]->getNumber());
 						m_pCards[k][j]->setNumber(0);
 						isDo = true;
@@ -216,12 +266,24 @@ bool GameScene::slideToLeft(){
 		}
 	}
 
+	if (isDo)
+	{
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++)
+				m_pLastCards[i][j] = temp[i][j];
+	}
+
 	return isDo;
 }
-bool GameScene::slideToRight(){
-	log("GameScene::slideToRight");
+bool GameScene::toRight(){
+	log("GameScene::toRight");
 
 	bool isDo = false;
+
+	int temp[4][4];
+	for (int i = 0; i < 4; i++)
+	for (int j = 0; j < 4; j++)
+		temp[i][j] = m_pCards[i][j]->getNumber();
 
 	for (int j = 0; j < 4; j++)
 	{
@@ -240,8 +302,10 @@ bool GameScene::slideToRight(){
 					}
 					else if (m_pCards[i][j]->getNumber() == m_pCards[k][j]->getNumber())
 					{
+						m_iScore += m_pCards[k][j]->getNumber();
 						m_pCards[i][j]->setNumber(m_pCards[i][j]->getNumber() + m_pCards[k][j]->getNumber());
 						m_pCards[k][j]->setNumber(0);
+					
 						isDo = true;
 					}
 
@@ -251,11 +315,23 @@ bool GameScene::slideToRight(){
 		}
 	}
 
+	if (isDo)
+	{
+		for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			m_pLastCards[i][j] = temp[i][j];
+	}
+
 	return isDo;
 }
-bool GameScene::slideToTop(){
-	log("GameScene::slideToTop");
+bool GameScene::toTop(){
+	log("GameScene::toTop");
 	bool isDo = false;
+
+	int temp[4][4];
+	for (int i = 0; i < 4; i++)
+	for (int j = 0; j < 4; j++)
+		temp[i][j] = m_pCards[i][j]->getNumber();
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -274,6 +350,7 @@ bool GameScene::slideToTop(){
 					}
 					else if (m_pCards[i][j]->getNumber() == m_pCards[i][k]->getNumber())
 					{
+						m_iScore += m_pCards[i][k]->getNumber();
 						m_pCards[i][j]->setNumber(m_pCards[i][j]->getNumber() + m_pCards[i][k]->getNumber());
 						m_pCards[i][k]->setNumber(0);
 						isDo = true;
@@ -285,11 +362,23 @@ bool GameScene::slideToTop(){
 		}
 	}
 
+	if (isDo)
+	{
+		for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			m_pLastCards[i][j] = temp[i][j];
+	}
+
 	return isDo;
 }
-bool GameScene::slideToBottom(){
-	log("GameScene::slideToBottom");
+bool GameScene::toBottom(){
+	log("GameScene::toBottom");
 	bool isDo = false;
+
+	int temp[4][4];
+	for (int i = 0; i < 4; i++)
+	for (int j = 0; j < 4; j++)
+		temp[i][j] = m_pCards[i][j]->getNumber();
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -308,6 +397,7 @@ bool GameScene::slideToBottom(){
 					}
 					else if (m_pCards[i][j]->getNumber() == m_pCards[i][k]->getNumber())
 					{
+						m_iScore += m_pCards[i][k]->getNumber();
 						m_pCards[i][j]->setNumber(m_pCards[i][j]->getNumber() + m_pCards[i][k]->getNumber());
 						m_pCards[i][k]->setNumber(0);
 						isDo = true;
@@ -319,5 +409,14 @@ bool GameScene::slideToBottom(){
 		}
 	}
 
+	if (isDo)
+	{
+		for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			m_pLastCards[i][j] = temp[i][j];
+	}
+
 	return isDo;
 }
+
+

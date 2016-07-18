@@ -85,10 +85,11 @@ bool ScrollNumberCol::init(int iNumberSize){
 	for (int i = 0; i < 10; i++)
 	{
 		snprintf(str, sizeof(str), "%d", i);
-		LabelTTF* num = LabelTTF::create(str, "", iNumberSize);
+		auto num = Label::createWithTTF(str, "fonts/arial.ttf", iNumberSize);
 		num->setTag(i);
 		num->setAnchorPoint(Vec2(0, 0));
 		num->setPosition(0, i*iNumberSize);
+		num->setColor(Color3B(0, 0, 0));
 		m_visibleNode->addChild(num);
 	}
 
@@ -97,7 +98,7 @@ bool ScrollNumberCol::init(int iNumberSize){
 
 void ScrollNumberCol::setNumber(int var){
 	m_iNumber = var;
-	stopAllActions();
+	m_visibleNode->stopAllActions();
 	auto num = m_visibleNode->getChildByTag(var);
 	Vec2 v = Vec2(m_visibleNode->getPositionX(), -num->getPositionY());
 	m_visibleNode->runAction(MoveTo::create(0.5f, v));
